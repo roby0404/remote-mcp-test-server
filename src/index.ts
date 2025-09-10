@@ -9,6 +9,8 @@ export class MyMCP extends McpAgent {
 		version: "1.0.0",
 	});
 
+    static env:Env;
+
     private async makeApiCall(
         endpoint: string,
         method: string = 'GET',
@@ -17,17 +19,18 @@ export class MyMCP extends McpAgent {
     ): Promise<any> {
         try {
             // Extract domain and token from incoming request headers
-            const magentoUrl = headers?.['x-magento-domain'] as string;
-            const bearerToken = headers?.['authorization'] as string;
+            const magentoUrl = this.env.API_DOMAIN;
+            const bearerToken = this.env.BEARER_TOKEN;
+            const userAgent = this.env.USER_AGENT ?? '';
 
             if (!magentoUrl || !bearerToken) {
-                throw new Error('Missing required headers: x-magento-domain and authorization');
+                throw new Error('Missing required env vars: API_DOMAIN and BEARER_TOKEN');
             }
 
             // Ensure bearer token format
             const token = bearerToken.startsWith('Bearer ') ? bearerToken : `Bearer ${bearerToken}`;
 
-            const apiUrl = `${magentoUrl}/rest/V1/${endpoint}`;
+            const apiUrl = `${magentoUrl}/rest/all/V1/${endpoint}`;
 
             const requestOptions: RequestInit = {
                 method,
@@ -35,6 +38,7 @@ export class MyMCP extends McpAgent {
                     'Authorization': token,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
+                    'User-Agent': userAgent,
                     ...headers
                 }
             };
@@ -66,7 +70,7 @@ export class MyMCP extends McpAgent {
             },
             async ({ sku }, { headers }) => {
                 try {
-                    const result = await this.makeApiCall(`mcpdata/product/sku/${encodeURIComponent(sku)}`, 'GET', null, headers);
+                    const result = await this.makeApiCall(`mcp/product/${encodeURIComponent(sku)}`, 'GET', null, headers);
                     return {
                         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
                     };
@@ -86,7 +90,7 @@ export class MyMCP extends McpAgent {
             },
             async ({ ids }, { headers }) => {
                 try {
-                    const result = await this.makeApiCall(`mcpdata/products/ids/${encodeURIComponent(ids)}`, 'GET', null, headers);
+                    const result = await this.makeApiCall(`mcp/products/ids/${encodeURIComponent(ids)}`, 'GET', null, headers);
                     return {
                         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
                     };
@@ -113,7 +117,7 @@ export class MyMCP extends McpAgent {
                         pageSize: page_size.toString(),
                         currentPage: current_page.toString()
                     });
-                    const result = await this.makeApiCall(`mcpdata/products/search?${params}`, 'GET', null, headers);
+                    const result = await this.makeApiCall(`mcp/products/search?${params}`, 'GET', null, headers);
                     return {
                         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
                     };
@@ -133,7 +137,7 @@ export class MyMCP extends McpAgent {
             },
             async ({ sku }, { headers }) => {
                 try {
-                    const result = await this.makeApiCall(`mcpdata/product/categories/${encodeURIComponent(sku)}`, 'GET', null, headers);
+                    const result = await this.makeApiCall(`mcp/product/categories/${encodeURIComponent(sku)}`, 'GET', null, headers);
                     return {
                         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
                     };
@@ -162,7 +166,7 @@ export class MyMCP extends McpAgent {
                     if (status) {
                         params.append('status', status);
                     }
-                    const result = await this.makeApiCall(`mcpdata/bestsellers?${params}`, 'GET', null, headers);
+                    const result = await this.makeApiCall(`mcp/bestsellers?${params}`, 'GET', null, headers);
                     return {
                         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
                     };
@@ -191,7 +195,7 @@ export class MyMCP extends McpAgent {
                     if (status) {
                         params.append('status', status);
                     }
-                    const result = await this.makeApiCall(`mcpdata/revenue?${params}`, 'GET', null, headers);
+                    const result = await this.makeApiCall(`mcp/revenue?${params}`, 'GET', null, headers);
                     return {
                         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
                     };
@@ -252,6 +256,7 @@ export default {
 		const url = new URL(request.url);
 
         if (url.pathname === "/mcp") {
+            MyMCP.env = env;
 			return MyMCP.serve("/mcp").fetch(request, env, ctx);
 		}
 
